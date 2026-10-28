@@ -4,7 +4,7 @@
 
 ## Проект на Confluence
 
-Ссылка: 
+Ссылка: https://saveliytsygankov.atlassian.net/wiki/x/1ACN
 
 ## Задача
 
