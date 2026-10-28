@@ -1,0 +1,577 @@
+openapi: 3.0.3
+info:
+  title: API онлайн-записи для фотостудии (MVP, клиентская часть)
+  version: 1.0.0
+  description: |
+    Контракт методов клиентской части сайта записи в фотостудию.
+    Методы открыты без входа (гостевая запись). Методы админ-панели в контракт не входят.
+
+    Общие правила:
+    - формат данных JSON, даты в ISO 8601 с часовым поясом;
+    - идентификатор записи, статус, канал, время окончания и время создания задаёт сервер;
+    - ошибки приходят в едином формате ErrorResponse;
+    - 4xx означает ошибку клиента, 5xx сбой сервера (технические подробности не раскрываются).
+servers:
+  - url: https://api.example.com/v1
+    description: Пример адреса 
+tags:
+  - name: Каталог
+    description: Услуги, фотографы, свободное время
+  - name: Записи
+    description: Создание и отмена записи
+
+paths:
+  /services:
+    get:
+      tags: [Каталог]
+      operationId: listServices
+      summary: Каталог услуг (UC-4 шаг 1, ВИ-1)
+      description: Возвращает опубликованные и неархивные услуги. Пагинации нет, услуг десятки.
+      responses:
+        '200':
+          description: Список услуг (может быть пустым)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /photographers:
+    get:
+      tags: [Каталог]
+      operationId: listPhotographers
+      summary: Фотографы и их портфолио (UC-4 шаг 3, ВИ-2)
+      description: |
+        Только активные фотографы и опубликованные работы.
+        Если указан service_id, возвращаются фотографы, оказывающие эту услугу.
+      parameters:
+        - name: service_id
+          in: query
+          required: false
+          description: Идентификатор услуги
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Список фотографов (может быть пустым)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Photographer'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Услуга не найдена, в архиве или не опубликована
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: SERVICE_NOT_FOUND
+                  message: Услуга не найдена
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /photographers/{id}/slots:
+    get:
+      tags: [Каталог]
+      operationId: listSlots
+      summary: Свободное время фотографа на дату (UC-4 шаг 5)
+      description: |
+        рабочие интервалы фотографа минус записи не в статусе «Отменена».
+        Слот целиком лежит внутри рабочего интервала и длится как услуга;
+        начала слотов идут с шагом 30 минут; слоты ближе чем через 2 часа не показываются.
+        Слот означает «было свободно в момент расчёта», окончательное решение принимает POST /bookings.
+
+        Порядок проверок: формат (400), существование (404), допустимость сочетания (409).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор фотографа
+          schema:
+            type: integer
+            minimum: 1
+        - name: service_id
+          in: query
+          required: true
+          description: Идентификатор услуги
+          schema:
+            type: integer
+            minimum: 1
+        - name: date
+          in: query
+          required: true
+          description: Дата в часовом поясе студии. Не в прошлом и не дальше 60 дней вперёд.
+          schema:
+            type: string
+            format: date
+          example: '2026-11-03'
+      responses:
+        '200':
+          description: Слоты на дату. Если слотов нет, items пуст (это не ошибка).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Фотограф или услуга не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                photographer:
+                  value:
+                    error:
+                      code: PHOTOGRAPHER_NOT_FOUND
+                      message: Фотограф не найден
+                service:
+                  value:
+                    error:
+                      code: SERVICE_NOT_FOUND
+                      message: Услуга не найдена
+        '409':
+          description: Фотограф не оказывает эту услугу
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: SERVICE_NOT_PROVIDED
+                  message: Фотограф не оказывает выбранную услугу
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /bookings:
+    post:
+      tags: [Записи]
+      operationId: createBooking
+      summary: Создать запись (UC-4 шаги 9–12)
+      description: |
+        Проверка формата, проверка времени и закрепление слота выполняются на сервере
+        одной неделимой операцией (FR-7, FR-9). При любой ошибке запись не создаётся (FR-8).
+
+        Повторный запрос с тем же Idempotency-Key возвращает прежний ответ и не создаёт
+        вторую запись. Если указаны пожелания, статус записи pending_review (ручное
+        подтверждение администратором), иначе confirmed.
+
+        Секретный токен отмены в ответ не входит: он уходит только в уведомлении клиенту.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreateRequest'
+            example:
+              service_id: 3
+              photographer_id: 2
+              start_at: '2026-11-10T14:00:00+03:00'
+              name: Пётр
+              phone: '+79303753990'
+              email: petr@example.com
+              wishes: Зелёный фон
+              consent_accepted: true
+              consent_version: '2026-09'
+      responses:
+        '201':
+          description: Запись создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingCreated'
+              example:
+                id: 100
+                status: pending_review
+                service:
+                  id: 3
+                  name: Портретная съёмка
+                photographer:
+                  id: 2
+                  name: Анна
+                start_at: '2026-11-10T14:00:00+03:00'
+                end_at: '2026-11-10T15:00:00+03:00'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Время занято или фотограф не оказывает услугу
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                slot_unavailable:
+                  summary: Время занято, в теле свободные слоты
+                  value:
+                    error:
+                      code: SLOT_UNAVAILABLE
+                      message: Выбранное время уже занято
+                      available_slots:
+                        - start_at: '2026-11-10T15:00:00+03:00'
+                          end_at: '2026-11-10T16:00:00+03:00'
+                service_not_provided:
+                  value:
+                    error:
+                      code: SERVICE_NOT_PROVIDED
+                      message: Фотограф не оказывает выбранную услугу
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /bookings/{id}/cancel:
+    post:
+      tags: [Записи]
+      operationId: cancelBooking
+      summary: Отменить запись 
+      description: |
+        Клиент записывался без входа, поэтому право отмены подтверждает секретный токен
+        из ссылки в уведомлении; в базе хранится только его хэш.
+        Отмена возможна не позднее чем за 24 часа до начала (допущение).
+
+        Повторная отмена уже отменённой записи возвращает 200 с тем же ответом.
+        Статус, история статусов и освобождение слота меняются в одной транзакции;
+        после фиксации сообщение клиенту передаётся сервису уведомлений.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор записи
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+            example:
+              cancel_token: 9f2b7c1e4a6d48f0b3a15c77e0d2a9b4
+              reason: Изменились планы
+      responses:
+        '200':
+          description: Запись отменена (или уже была отменена)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          description: Записи нет или токен не подходит (существование записи не раскрываем)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: BOOKING_NOT_FOUND
+                  message: Запись не найдена
+        '409':
+          description: Отмена невозможна
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                too_late:
+                  summary: До съёмки меньше 24 часов
+                  value:
+                    error:
+                      code: CANCEL_TOO_LATE
+                      message: Отменить запись можно не позднее чем за 24 часа до съёмки
+                not_allowed:
+                  summary: Запись уже выполнена
+                  value:
+                    error:
+                      code: CANCEL_NOT_ALLOWED
+                      message: Выполненную запись отменить нельзя
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Случайный UUID, который браузер создаёт при открытии формы.
+        Защищает от дубля при двойном нажатии и повторе запроса после сбоя сети.
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    ValidationError:
+      description: Данные не прошли проверку. В details перечислены все неверные поля.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Данные не прошли проверку
+              details:
+                - field: phone
+                  message: Телефон должен начинаться с +7 или 8 и содержать 10 цифр после префикса
+                - field: email
+                  message: Укажите email в формате name@domain.ru
+    InternalError:
+      description: Сбой сервера. Запись и закрепление времени не созданы.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Не удалось выполнить запрос, попробуйте ещё раз
+              request_id: a1b2c3d4
+
+  schemas:
+    Service:
+      type: object
+      required: [id, name, duration_min, price]
+      properties:
+        id:
+          type: integer
+          example: 3
+        name:
+          type: string
+          example: Портретная съёмка
+        description:
+          type: string
+          example: Студийный портрет, 1 час
+        duration_min:
+          type: integer
+          description: Длительность в минутах
+          example: 60
+        price:
+          type: string
+          description: Цена строкой с двумя знаками, чтобы не терять копейки
+          pattern: '^\d+\.\d{2}$'
+          example: '3500.00'
+
+    PortfolioItem:
+      type: object
+      required: [thumbnail_url, image_url]
+      properties:
+        thumbnail_url:
+          type: string
+          format: uri
+        image_url:
+          type: string
+          format: uri
+
+    Photographer:
+      type: object
+      required: [id, name, portfolio]
+      properties:
+        id:
+          type: integer
+          example: 2
+        name:
+          type: string
+          example: Анна
+        bio:
+          type: string
+        photo_url:
+          type: string
+          format: uri
+        portfolio:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioItem'
+
+    Slot:
+      type: object
+      required: [start_at, end_at]
+      properties:
+        start_at:
+          type: string
+          format: date-time
+          example: '2026-11-03T10:00:00+03:00'
+        end_at:
+          type: string
+          format: date-time
+          example: '2026-11-03T11:00:00+03:00'
+
+    SlotsResponse:
+      type: object
+      required: [date, duration_min, items]
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2026-11-03'
+        duration_min:
+          type: integer
+          example: 60
+        items:
+          type: array
+          description: Слоты по возрастанию start_at
+          items:
+            $ref: '#/components/schemas/Slot'
+
+    BookingCreateRequest:
+      type: object
+      required: [service_id, photographer_id, start_at, name, phone, email, consent_accepted, consent_version]
+      properties:
+        service_id:
+          type: integer
+          description: Услуга опубликована и не в архиве
+        photographer_id:
+          type: integer
+          description: Фотограф активен и оказывает услугу
+        start_at:
+          type: string
+          format: date-time
+          description: В рабочие часы студии, не раньше чем через 2 часа (FR-5)
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: Буквы кириллицы и латиницы, пробел, дефис, апостроф (FR-2)
+        phone:
+          type: string
+          description: После очистки от пробелов, скобок и дефисов начинается с +7 или 8 и содержит 10 цифр после префикса (FR-3)
+          example: '+79303753990'
+        email:
+          type: string
+          maxLength: 254
+          description: Ровно один символ @, непустая часть до него, домен с точкой, без пробелов (FR-4)
+        wishes:
+          type: string
+          maxLength: 500
+          description: Необязательно. Пустая строка означает отсутствие пожеланий.
+        consent_accepted:
+          type: boolean
+          description: Должно быть true
+        consent_version:
+          type: string
+          description: Версия текста согласия на обработку персональных данных (НФ-11)
+          example: '2026-09'
+
+    BookingCreated:
+      type: object
+      required: [id, status, service, photographer, start_at, end_at]
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        service:
+          $ref: '#/components/schemas/IdName'
+        photographer:
+          $ref: '#/components/schemas/IdName'
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+
+    IdName:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    BookingStatus:
+      type: string
+      description: |
+        pending_review — Ожидает решения, awaiting_client — Ожидает ответа клиента,
+        confirmed — Подтверждена, completed — Выполнена, cancelled — Отменена.
+      enum: [pending_review, awaiting_client, confirmed, completed, cancelled]
+
+    CancelRequest:
+      type: object
+      required: [cancel_token]
+      properties:
+        cancel_token:
+          type: string
+          description: Токен из ссылки в уведомлении
+        reason:
+          type: string
+          maxLength: 300
+
+    CancelResponse:
+      type: object
+      required: [id, status, cancelled_at]
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [cancelled]
+        cancelled_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Машинно-читаемый код ошибки
+              enum:
+                - VALIDATION_ERROR
+                - SERVICE_NOT_FOUND
+                - PHOTOGRAPHER_NOT_FOUND
+                - SERVICE_NOT_PROVIDED
+                - SLOT_UNAVAILABLE
+                - BOOKING_NOT_FOUND
+                - CANCEL_TOO_LATE
+                - CANCEL_NOT_ALLOWED
+                - INTERNAL_ERROR
+            message:
+              type: string
+              description: Сообщение для пользователя
+            details:
+              type: array
+              description: Только для VALIDATION_ERROR
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+            available_slots:
+              type: array
+              description: Только для SLOT_UNAVAILABLE
+              items:
+                $ref: '#/components/schemas/Slot'
+            request_id:
+              type: string
+              description: Только для INTERNAL_ERROR, по нему ищут сбой в журнале

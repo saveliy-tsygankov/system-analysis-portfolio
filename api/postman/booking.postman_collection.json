@@ -1,0 +1,887 @@
+{
+  "info": {
+    "name": "Онлайн-запись для фотостудии (MVP)",
+    "description": "Коллекция запросов к методам клиентской части. Контракт: api/openapi.yaml. Базовый адрес задаётся переменной baseUrl. Для проверки без сервера импортируйте openapi.yaml в Postman и создайте Mock Server, либо используйте примеры ответов в этой коллекции.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET /services — каталог услуг",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/services",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "services"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('есть items', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "200 каталог",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"items\": [\n    {\n      \"id\": 1,\n      \"name\": \"Портретная съёмка\",\n      \"description\": \"Студийный портрет, 1 час\",\n      \"duration_min\": 60,\n      \"price\": \"3500.00\"\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /photographers — фотографы услуги",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/photographers?service_id={{serviceId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "photographers"
+          ],
+          "query": [
+            {
+              "key": "service_id",
+              "value": "{{serviceId}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('есть items', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "200 фотографы",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/photographers?service_id={{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "photographers"
+              ],
+              "query": [
+                {
+                  "key": "service_id",
+                  "value": "{{serviceId}}"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"items\": [\n    {\n      \"id\": 2,\n      \"name\": \"Игорь\",\n      \"bio\": \"Портрет и предметная съёмка\",\n      \"photo_url\": \"https://example.com/igor.jpg\",\n      \"portfolio\": [\n        {\n          \"thumbnail_url\": \"https://example.com/w1_small.jpg\",\n          \"image_url\": \"https://example.com/w1.jpg\"\n        }\n      ]\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET /photographers/{id}/slots — свободное время",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/photographers/{{photographerId}}/slots?service_id={{serviceId}}&date={{date}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "photographers",
+            "{{photographerId}}",
+            "slots"
+          ],
+          "query": [
+            {
+              "key": "service_id",
+              "value": "{{serviceId}}"
+            },
+            {
+              "key": "date",
+              "value": "{{date}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('слоты упорядочены по времени', () => {",
+              "  const t = b.items.map(s => Date.parse(s.start_at));",
+              "  pm.expect(t).to.eql([...t].sort((x, y) => x - y));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "200 слоты",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/photographers/{{photographerId}}/slots?service_id={{serviceId}}&date={{date}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "photographers",
+                "{{photographerId}}",
+                "slots"
+              ],
+              "query": [
+                {
+                  "key": "service_id",
+                  "value": "{{serviceId}}"
+                },
+                {
+                  "key": "date",
+                  "value": "{{date}}"
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"date\": \"2026-11-03\",\n  \"duration_min\": 60,\n  \"items\": [\n    {\n      \"start_at\": \"2026-11-03T10:00:00+03:00\",\n      \"end_at\": \"2026-11-03T11:00:00+03:00\"\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET slots — неверный формат даты (400)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/photographers/{{photographerId}}/slots?service_id={{serviceId}}&date=20 октября",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "photographers",
+            "{{photographerId}}",
+            "slots"
+          ],
+          "query": [
+            {
+              "key": "service_id",
+              "value": "{{serviceId}}"
+            },
+            {
+              "key": "date",
+              "value": "20 октября"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400', () => pm.response.to.have.status(400));",
+              "pm.test('код VALIDATION_ERROR', () => pm.expect(pm.response.json().error.code).to.eql('VALIDATION_ERROR'));"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "400",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/photographers/{{photographerId}}/slots?service_id={{serviceId}}&date=20 октября",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "photographers",
+                "{{photographerId}}",
+                "slots"
+              ],
+              "query": [
+                {
+                  "key": "service_id",
+                  "value": "{{serviceId}}"
+                },
+                {
+                  "key": "date",
+                  "value": "20 октября"
+                }
+              ]
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"Данные не прошли проверку\",\n    \"details\": [\n      {\n        \"field\": \"date\",\n        \"message\": \"Дата должна быть в формате ГГГГ-ММ-ДД\"\n      }\n    ]\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET slots — фотографа нет (404)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/photographers/9999/slots?service_id={{serviceId}}&date={{date}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "photographers",
+            "9999",
+            "slots"
+          ],
+          "query": [
+            {
+              "key": "service_id",
+              "value": "{{serviceId}}"
+            },
+            {
+              "key": "date",
+              "value": "{{date}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('404', () => pm.response.to.have.status(404));",
+              "pm.test('код PHOTOGRAPHER_NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('PHOTOGRAPHER_NOT_FOUND'));"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "404",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/photographers/9999/slots?service_id={{serviceId}}&date={{date}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "photographers",
+                "9999",
+                "slots"
+              ],
+              "query": [
+                {
+                  "key": "service_id",
+                  "value": "{{serviceId}}"
+                },
+                {
+                  "key": "date",
+                  "value": "{{date}}"
+                }
+              ]
+            }
+          },
+          "status": "Not Found",
+          "code": 404,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"error\": {\n    \"code\": \"PHOTOGRAPHER_NOT_FOUND\",\n    \"message\": \"Фотограф не найден\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "GET slots — фотограф не оказывает услугу (409)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/photographers/2/slots?service_id=3&date={{date}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "photographers",
+            "2",
+            "slots"
+          ],
+          "query": [
+            {
+              "key": "service_id",
+              "value": "3"
+            },
+            {
+              "key": "date",
+              "value": "{{date}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('409', () => pm.response.to.have.status(409));",
+              "pm.test('код SERVICE_NOT_PROVIDED', () => pm.expect(pm.response.json().error.code).to.eql('SERVICE_NOT_PROVIDED'));"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "409",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/photographers/2/slots?service_id=3&date={{date}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "photographers",
+                "2",
+                "slots"
+              ],
+              "query": [
+                {
+                  "key": "service_id",
+                  "value": "3"
+                },
+                {
+                  "key": "date",
+                  "value": "{{date}}"
+                }
+              ]
+            }
+          },
+          "status": "Conflict",
+          "code": 409,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"error\": {\n    \"code\": \"SERVICE_NOT_PROVIDED\",\n    \"message\": \"Фотограф не оказывает выбранную услугу\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /bookings — создать запись (201)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"service_id\": 3,\n  \"photographer_id\": 2,\n  \"start_at\": \"2026-11-10T14:00:00+03:00\",\n  \"name\": \"Пётр\",\n  \"phone\": \"+79303753990\",\n  \"email\": \"petr@example.com\",\n  \"wishes\": \"Зелёный фон\",\n  \"consent_accepted\": true,\n  \"consent_version\": \"2026-09\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bookings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "bookings"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const b = pm.response.json();",
+              "pm.test('статус задан сервером', () => pm.expect(['confirmed', 'pending_review']).to.include(b.status));",
+              "pm.test('токен отмены не возвращается', () => pm.expect(b).to.not.have.property('cancel_token'));",
+              "pm.collectionVariables.set('bookingId', b.id);"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "201 создана (с пожеланиями)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_id\": 3,\n  \"photographer_id\": 2,\n  \"start_at\": \"2026-11-10T14:00:00+03:00\",\n  \"name\": \"Пётр\",\n  \"phone\": \"+79303753990\",\n  \"email\": \"petr@example.com\",\n  \"wishes\": \"Зелёный фон\",\n  \"consent_accepted\": true,\n  \"consent_version\": \"2026-09\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          },
+          "status": "Created",
+          "code": 201,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"id\": 100,\n  \"status\": \"pending_review\",\n  \"service\": {\n    \"id\": 3,\n    \"name\": \"Съёмка для бренда\"\n  },\n  \"photographer\": {\n    \"id\": 2,\n    \"name\": \"Игорь\"\n  },\n  \"start_at\": \"2026-11-10T14:00:00+03:00\",\n  \"end_at\": \"2026-11-10T16:00:00+03:00\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /bookings — некорректные данные (400, 4.E1)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"service_id\": 3,\n  \"photographer_id\": 2,\n  \"start_at\": \"2026-11-10T14:00:00+03:00\",\n  \"name\": \"Пётр\",\n  \"phone\": \"12345\",\n  \"email\": \"not-an-email\",\n  \"wishes\": \"Зелёный фон\",\n  \"consent_accepted\": true,\n  \"consent_version\": \"2026-09\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bookings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "bookings"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400', () => pm.response.to.have.status(400));",
+              "const d = pm.response.json().error.details;",
+              "pm.test('перечислены все неверные поля', () => pm.expect(d.map(x => x.field)).to.include.members(['phone', 'email']));"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "400 неверные поля",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_id\": 3,\n  \"photographer_id\": 2,\n  \"start_at\": \"2026-11-10T14:00:00+03:00\",\n  \"name\": \"Пётр\",\n  \"phone\": \"12345\",\n  \"email\": \"not-an-email\",\n  \"wishes\": \"Зелёный фон\",\n  \"consent_accepted\": true,\n  \"consent_version\": \"2026-09\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"Данные не прошли проверку\",\n    \"details\": [\n      {\n        \"field\": \"phone\",\n        \"message\": \"Телефон должен начинаться с +7 или 8 и содержать 10 цифр после префикса\"\n      },\n      {\n        \"field\": \"email\",\n        \"message\": \"Укажите email в формате name@domain.ru\"\n      }\n    ]\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /bookings — время занято (409, 4.E2)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"service_id\": 3,\n  \"photographer_id\": 2,\n  \"start_at\": \"2026-11-10T14:00:00+03:00\",\n  \"name\": \"Пётр\",\n  \"phone\": \"+79303753990\",\n  \"email\": \"petr@example.com\",\n  \"wishes\": \"Зелёный фон\",\n  \"consent_accepted\": true,\n  \"consent_version\": \"2026-09\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bookings",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "bookings"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Отправьте запрос на уже занятый слот: ответ 409 со свободными слотами",
+              "pm.test('409', () => pm.response.to.have.status(409));",
+              "const e = pm.response.json().error;",
+              "pm.test('SLOT_UNAVAILABLE со списком слотов', () => {",
+              "  pm.expect(e.code).to.eql('SLOT_UNAVAILABLE');",
+              "  pm.expect(e.available_slots).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "409 время занято",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_id\": 3,\n  \"photographer_id\": 2,\n  \"start_at\": \"2026-11-10T14:00:00+03:00\",\n  \"name\": \"Пётр\",\n  \"phone\": \"+79303753990\",\n  \"email\": \"petr@example.com\",\n  \"wishes\": \"Зелёный фон\",\n  \"consent_accepted\": true,\n  \"consent_version\": \"2026-09\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings"
+              ]
+            }
+          },
+          "status": "Conflict",
+          "code": 409,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"error\": {\n    \"code\": \"SLOT_UNAVAILABLE\",\n    \"message\": \"Выбранное время уже занято\",\n    \"available_slots\": [\n      {\n        \"start_at\": \"2026-11-10T16:00:00+03:00\",\n        \"end_at\": \"2026-11-10T18:00:00+03:00\"\n      }\n    ]\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "POST /bookings/{id}/cancel — отмена по токену",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cancel_token\": \"{{cancelToken}}\",\n  \"reason\": \"Изменились планы\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/bookings/{{bookingId}}/cancel",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "bookings",
+            "{{bookingId}}",
+            "cancel"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('статус cancelled', () => pm.expect(pm.response.json().status).to.eql('cancelled'));"
+            ]
+          }
+        }
+      ],
+      "response": [
+        {
+          "name": "200 отменена",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cancel_token\": \"{{cancelToken}}\",\n  \"reason\": \"Изменились планы\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "{{bookingId}}",
+                "cancel"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"id\": 100,\n  \"status\": \"cancelled\",\n  \"cancelled_at\": \"2026-10-21T12:30:00+03:00\"\n}"
+        },
+        {
+          "name": "409 слишком поздно",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cancel_token\": \"{{cancelToken}}\",\n  \"reason\": \"Изменились планы\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bookings/{{bookingId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bookings",
+                "{{bookingId}}",
+                "cancel"
+              ]
+            }
+          },
+          "status": "Conflict",
+          "code": 409,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\n  \"error\": {\n    \"code\": \"CANCEL_TOO_LATE\",\n    \"message\": \"Отменить запись можно не позднее чем за 24 часа до съёмки\"\n  }\n}"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.example.com/v1"
+    },
+    {
+      "key": "photographerId",
+      "value": "2"
+    },
+    {
+      "key": "serviceId",
+      "value": "1"
+    },
+    {
+      "key": "date",
+      "value": "2026-11-03"
+    },
+    {
+      "key": "bookingId",
+      "value": "100"
+    },
+    {
+      "key": "cancelToken",
+      "value": "токен-из-ссылки-в-уведомлении"
+    }
+  ]
+}
